@@ -1,0 +1,6 @@
+parameter,optimal_value,description,export_timestamp,optimization_method
+BID_WEIGHT,0.5006009949771377,Weight for bid-side options flow,2026-01-13 21:13:32,Bayesian_Optuna
+DTE_LAMBDA,0.06983643719274202,Decay factor for days-to-expiration,2026-01-13 21:13:32,Bayesian_Optuna
+SECONDARY_CLASS_WEIGHT,0.2827394726652016,Weight for secondary share class flow,2026-01-13 21:13:32,Bayesian_Optuna
+MIN_SECONDARY_THRESHOLD,0.24681264951009116,Minimum threshold for secondary class inclusion,2026-01-13 21:13:32,Bayesian_Optuna
+PRICE_CAP_ADJUSTMENT,True,Apply price/cap adjustment (True/False),2026-01-13 21:13:32,Bayesian_Optuna

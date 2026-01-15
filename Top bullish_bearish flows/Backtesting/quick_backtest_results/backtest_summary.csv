@@ -1,0 +1,19 @@
+metric,value,holding_period,timestamp
+Average_IC,0.04866455724439947,Swing_3-7d,2026-01-13 21:13:32
+Average_IC_tstat,1.5178556119358462,Swing_3-7d,2026-01-13 21:13:32
+Average_Hit_Rate,51.03092783505155,Swing_3-7d,2026-01-13 21:13:32
+Average_Pearson_Correlation,0.027687342132602637,Swing_3-7d,2026-01-13 21:13:32
+Average_Sample_Size,970.0,Swing_3-7d,2026-01-13 21:13:32
+Best_Period_IC,0.08125726149749657,7d,2026-01-13 21:13:32
+Best_Period_IC_tstat,2.675057397117782,7d,2026-01-13 21:13:32
+Best_Period_Hit_Rate,50.72164948453608,7d,2026-01-13 21:13:32
+Best_Period_Pearson_Correlation,0.033206801950150626,7d,2026-01-13 21:13:32
+Best_Period_Days,7.0,7d,2026-01-13 21:13:32
+Optimization_Best_Score,12.086883900473042,All,2026-01-13 21:13:32
+Optimization_Avg_Score,9.902085555277713,All,2026-01-13 21:13:32
+Optimization_Std_Score,1.9805046873410137,All,2026-01-13 21:13:32
+Optimization_Score_Improvement_Pct,22.064022099171353,All,2026-01-13 21:13:32
+Total_Data_Points,970,All,2026-01-13 21:13:32
+Unique_Tickers,227,All,2026-01-13 21:13:32
+Date_Range_Start,2024-04-30,All,2026-01-13 21:13:32
+Date_Range_End,2025-12-30,All,2026-01-13 21:13:32
