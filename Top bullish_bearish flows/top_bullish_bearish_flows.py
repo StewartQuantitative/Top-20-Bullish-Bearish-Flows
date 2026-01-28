@@ -34,14 +34,15 @@ massive_client = RESTClient(API_KEY)
 # ============================================================================
 
 # File Paths
-OUTPUT_DIR = "CSV_Output"
+# Output directory: base CSV_Output folder (absolute path)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "CSV_Output")
 # Load tickers from filtered list (stocks with significant options flow)
 FILTERED_TICKERS_CSV = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
                                      "Optionable Stocks", "stocks_with_significant_options_flow.csv")
 
 # Performance Settings
 MAX_CONTRACTS_PER_TICKER = 300  # Top N contracts by volume (captures 95%+ of flow)
-MAX_WORKERS = 100               # Parallel processing threads (increase for production servers)
+MAX_WORKERS = 40                # Parallel processing threads (increase for production servers)
 MIN_VOLUME_FILTER = 1           # Minimum volume to include a contract
 
 # Output Settings
@@ -54,14 +55,14 @@ MIN_ETF_VOLUME = 100_000        # Minimum total options volume for ETFs (filters
 
 # Weighting Parameters
 ASK_WEIGHT = 1.0                # Weight for aggressive trades (ask side)
-BID_WEIGHT = 0.7                # Weight for passive trades (bid side)
-DTE_LAMBDA = 0.10               # Exponential decay rate for DTE weighting
+BID_WEIGHT = 0.5                # Weight for passive trades (bid side)
+DTE_LAMBDA = 0.07               # Exponential decay rate for DTE weighting
 VOLATILITY_WEIGHT = 0.5         # Weight for volatility normalization (higher = more penalty for volatile stocks)
 
 # Multi-Class Flow Aggregation (liquidity-weighted approach)
 MULTI_CLASS_AGGREGATION = True  # Enable flow aggregation across share classes
-SECONDARY_CLASS_WEIGHT = 0.30   # Weight for secondary class flow (30% of secondary flow added to primary)
-MIN_SECONDARY_THRESHOLD = 0.20  # Secondary class must have ≥20% of primary's flow to count
+SECONDARY_CLASS_WEIGHT = 0.28   # Weight for secondary class flow (30% of secondary flow added to primary)
+MIN_SECONDARY_THRESHOLD = 0.24  # Secondary class must have ≥20% of primary's flow to count
 
 # Share Class Groups (for duplicate removal)
 SHARE_CLASS_GROUPS = {
@@ -274,16 +275,37 @@ def calculate_contract_flow(contract):
         return None
     
     premium = close_price * volume * 100
-    bid = getattr(day, 'open', close_price * 0.98) or close_price * 0.98
-    ask = getattr(day, 'close', close_price * 1.02) or close_price * 1.02
+    
+    # Use actual bid/ask from last_quote if available, otherwise fallback to estimated spread
+    last_quote = getattr(contract, 'last_quote', None)
+    if last_quote:
+        bid = getattr(last_quote, 'bid', None)
+        ask = getattr(last_quote, 'ask', None)
+        if bid is None or ask is None or bid <= 0 or ask <= 0:
+            # Fallback if bid/ask invalid
+            bid = close_price * 0.995
+            ask = close_price * 1.005
+        elif bid >= ask:
+            # Invalid spread, use close price with small spread
+            mid_price = (bid + ask) / 2
+            bid = mid_price * 0.995
+            ask = mid_price * 1.005
+    else:
+        # Fallback: estimate bid/ask from close price (1% spread)
+        bid = close_price * 0.995
+        ask = close_price * 1.005
+    
     mid = (bid + ask) / 2
     ask_side_pct, bid_side_pct = (0.7, 0.3) if last_price >= mid else (0.3, 0.7)
     
-    # DTE weight
+    # DTE weight & expiry filter (defensive: exclude expired contracts)
     if expiry_str:
         try:
             expiry = datetime.strptime(expiry_str, '%Y-%m-%d').date()
             dte = (expiry - datetime.now().date()).days
+            # Skip contracts that have already expired, even if the API returns them
+            if dte < 0:
+                return None
             import math
             dte_weight = max(0.1, math.exp(-DTE_LAMBDA * dte))
         except:
@@ -420,8 +442,8 @@ def run_parallel(func, items, desc=""):
                 pass
     return results
 
-def save_rankings(bullish_df, bearish_df, filename):
-    """Combine bullish/bearish rankings and save to CSV."""
+def save_rankings(bullish_df, bearish_df, filename, date_subfolder):
+    """Combine bullish/bearish rankings and save to CSV in date-based subfolder."""
     data = []
     for df, flow_type in [(bullish_df, 'Bullish'), (bearish_df, 'Bearish')]:
         if not df.empty:
@@ -437,7 +459,11 @@ def save_rankings(bullish_df, bearish_df, filename):
             
             data.append(df_copy)
     if data:
-        filepath = os.path.join(OUTPUT_DIR, filename)
+        # Create date-based subfolder
+        date_dir = os.path.join(OUTPUT_DIR, date_subfolder)
+        os.makedirs(date_dir, exist_ok=True)
+        
+        filepath = os.path.join(date_dir, filename)
         # Delete existing file to ensure fresh write with updated timestamp
         if os.path.exists(filepath):
             os.remove(filepath)
@@ -549,13 +575,14 @@ analysis_date = get_analysis_date()
 print("\n" + "="*80)
 print("Saving results...")
 
+# Create base output directory (for volatility cache)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Save all rankings
-save_rankings(stocks_bullish, stocks_bearish, f'stock_flows_{analysis_date}.csv')
-save_rankings(etfs_bullish, etfs_bearish, f'etf_flows_{analysis_date}.csv')
+# Save all rankings in date-based subfolder
+save_rankings(stocks_bullish, stocks_bearish, f'stock_flows_{analysis_date}.csv', analysis_date)
+save_rankings(etfs_bullish, etfs_bearish, f'etf_flows_{analysis_date}.csv', analysis_date)
 for cat_name, rankings in category_rankings.items():
-    save_rankings(rankings['bullish'], rankings['bearish'], f'{cat_name}_flows_{analysis_date}.csv')
+    save_rankings(rankings['bullish'], rankings['bearish'], f'{cat_name}_flows_{analysis_date}.csv', analysis_date)
 
 _elapsed = time.time() - _start_time
 print(f"\nAnalysis completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
